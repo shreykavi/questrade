@@ -1,4 +1,9 @@
-Questrade API
+# Questrade API
+
+### FORK INFO
+
+This fork was created so that instead of using mkdirp to save keys it could utilize the database in the backend
+
 =============
 
 [![npm package](https://nodei.co/npm/questrade.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/questrade/)
@@ -7,7 +12,6 @@ Questrade API
 [![Dependency Status](https://img.shields.io/david/leanderlee/questrade.svg?style=flat-square)](https://david-dm.org/leanderlee/questrade)
 [![Known Vulnerabilities](https://snyk.io/test/npm/questrade/badge.svg?style=flat-square)](https://snyk.io/test/npm/questrade)
 [![Gitter](https://img.shields.io/badge/gitter-join_chat-blue.svg?style=flat-square)](https://gitter.im/leanderlee/questrade?utm_source=badge)
-
 
 This API is an easy way to use the [Questrade API](www.questrade.com/api/documentation/getting-started) immediately.
 
@@ -30,24 +34,23 @@ You will then need to get an [API key](https://login.questrade.com/APIAccess/use
 After that's it's really simple to use:
 
 ```js
-var Questrade = require('questrade');
+var Questrade = require("questrade");
 
-var qt = new Questrade('<your-api-key-here>');
+var qt = new Questrade("<your-api-key-here>");
 // - OR -
-var qt = new Questrade('./path/to/file'); // Location of a text file with the API key
+var qt = new Questrade("./path/to/file"); // Location of a text file with the API key
 
 // Wait to login
-qt.on('ready', function () {
-
+qt.on("ready", function() {
   // Access your account here
-  qt.getAccounts()
-  qt.getBalances()
+  qt.getAccounts();
+  qt.getBalances();
 
   // Get Market quotes
-  qt.getQuote('MSFT')
+  qt.getQuote("MSFT");
 
   // ... etc. See the full documentation for all the calls you can make!
-})
+});
 ```
 
 Apart from the `ready` event, we emit include `error` on fatal errors, and `refresh` when the login token is refreshed.
@@ -65,7 +68,7 @@ In order to do that, you should set either the `keyDir` option (defaults to `./k
 By default, if you instantiate the `Questrade` class without passing in an account ID to options, we will try to find and select the primary account (by fetching a list of all the accounts). If you want to change the account, simply do:
 
 ```js
-qt.account = '123456'; // Switch to account 123456 -- All future calls will use this account.
+qt.account = "123456"; // Switch to account 123456 -- All future calls will use this account.
 ```
 
 ## Streaming
@@ -73,137 +76,156 @@ qt.account = '123456'; // Switch to account 123456 -- All future calls will use 
 For those accounts that have L1 data access (either practice account or Advanced market data packages) you can stream live market data.
 
 ```js
-var request = require('request');
-var Questrade = require('questrade');
+var request = require("request");
+var Questrade = require("questrade");
 
 var options = {
   test: true, // For practice accounts
-  seedToken: 'YOURTOKENHERE',
-}
+  seedToken: "YOURTOKENHERE"
+};
 
 var qt = new Questrade(options);
 
 // Wait to login
-qt.on('ready', function (err) {
+qt.on("ready", function(err) {
   // Websocket port changes by API and by symbol. So you have to get the port every time you need different data stream
-  var getWebSocketURL = function (symbolId, cb) {
+  var getWebSocketURL = function(symbolId, cb) {
     var webSocketURL;
-    request({
-      method: 'GET',
-      url: qt.apiUrl + '/markets/quotes?ids=' + symbolId + '&stream=true&mode=WebSocket',
-      auth: {
-        bearer: qt.accessToken
+    request(
+      {
+        method: "GET",
+        url:
+          qt.apiUrl +
+          "/markets/quotes?ids=" +
+          symbolId +
+          "&stream=true&mode=WebSocket",
+        auth: {
+          bearer: qt.accessToken
+        }
+      },
+      function(err, http, body) {
+        if (err) {
+          cb(err, null);
+        } else {
+          response = JSON.parse(body);
+          webSocketURL =
+            qt.api_server.slice(0, -1) +
+            ":" +
+            response.streamPort +
+            "/" +
+            qt.apiVersion +
+            "/markets/quotes?ids=" +
+            symbolId +
+            "stream=true&mode=WebSocket";
+          cb(null, webSocketURL);
+        }
       }
-    }, function (err, http, body) {
-      if (err) {
-        cb(err, null);
-      } else {
-        response = JSON.parse(body);
-        webSocketURL = qt.api_server.slice(0, -1) + ':' + response.streamPort + '/' + qt.apiVersion + '/markets/quotes?ids=' + symbolId + 'stream=true&mode=WebSocket';
-        cb(null, webSocketURL);
-      }
-    });
-  }
-  getWebSocketURL('9291,8049', function (err, webSocketURL) { // BMO.TO & AAPL
+    );
+  };
+  getWebSocketURL("9291,8049", function(err, webSocketURL) {
+    // BMO.TO & AAPL
     console.log(webSocketURL);
-    const WebSocket = require('ws');
+    const WebSocket = require("ws");
     const ws = new WebSocket(webSocketURL);
 
-    ws.on('open', function open() {
+    ws.on("open", function open() {
       ws.send(qt.accessToken);
     });
 
-    ws.on('message', function incoming(data) {
+    ws.on("message", function incoming(data) {
       console.log(data);
       // Do what you want with the data
     });
 
     // CLOSING WebSocket Connections otherwise will remain open
-    process.on('exit', function () {
+    process.on("exit", function() {
       if (ws) {
-        console.log('CLOSE WebSocket');
+        console.log("CLOSE WebSocket");
         ws.close();
       }
     });
 
     //catches ctrl+c event
-    process.on('SIGINT', function () {
+    process.on("SIGINT", function() {
       if (ws) {
-        console.log('CLOSE WebSocket SIGINT');
+        console.log("CLOSE WebSocket SIGINT");
         ws.close();
       }
     });
 
     //catches uncaught exceptions
-    process.on('uncaughtException', function () {
+    process.on("uncaughtException", function() {
       if (ws) {
-        console.log('CLOSE WebSocket');
+        console.log("CLOSE WebSocket");
         ws.close();
       }
     });
   });
-
-})
-
+});
 ```
 
 ## Some examples
 
 #### Account Info
+
 ```js
-qt.getBalances(function (err, balances) {})
-qt.getAccounts(function (err, accounts) {})
-qt.getActivities(function (err, activities) {})
-qt.getMarkets(function (err, markets) {})
+qt.getBalances(function(err, balances) {});
+qt.getAccounts(function(err, accounts) {});
+qt.getActivities(function(err, activities) {});
+qt.getMarkets(function(err, markets) {});
 ```
 
 #### Orders
+
 ```js
-qt.getOrder(orderId, function (err, order) {})
-qt.getOpenOrders(function (err, orders) {})
-qt.getAllOrders(function (err, orders) {})
-qt.getClosedOrders(function (err, orders) {})
-qt.createOrder(newOrder, function (err, response) {})
-qt.updateOrder(orderId, newOrder, function (err, response) {})
-qt.removeOrder(orderId, function (err, response) {})
-qt.testOrder(order, function (err, impact) {})
+qt.getOrder(orderId, function(err, order) {});
+qt.getOpenOrders(function(err, orders) {});
+qt.getAllOrders(function(err, orders) {});
+qt.getClosedOrders(function(err, orders) {});
+qt.createOrder(newOrder, function(err, response) {});
+qt.updateOrder(orderId, newOrder, function(err, response) {});
+qt.removeOrder(orderId, function(err, response) {});
+qt.testOrder(order, function(err, impact) {});
 ```
 
 #### Quotes
+
 ```js
-qt.getSymbol(symbolId, function (err, symbol) {})
-qt.getSymbol('MSFT', function (err, symbol) {})
-qt.search('B', function (err, symbols) {})
-qt.getQuote('MSFT', function (err, quote) {})
-qt.getQuotes(['MSFT', 'AAPL', 'BMO'], function (err, quotes) {})
-qt.getCandles(symbolId, options, function (err, candles) {})
+qt.getSymbol(symbolId, function(err, symbol) {});
+qt.getSymbol("MSFT", function(err, symbol) {});
+qt.search("B", function(err, symbols) {});
+qt.getQuote("MSFT", function(err, quote) {});
+qt.getQuotes(["MSFT", "AAPL", "BMO"], function(err, quotes) {});
+qt.getCandles(symbolId, options, function(err, candles) {});
 ```
 
 #### Strategy
+
 ```js
-qt.createStrategy(newStrategy, function (err, response) {})
-qt.testStrategy(strategy, function (err, impact) {})
+qt.createStrategy(newStrategy, function(err, response) {});
+qt.testStrategy(strategy, function(err, impact) {});
 ```
 
 #### Option Chain
+
 ```js
-qt.getSymbol('MSFT', function (err, symbol) {
-  qt.getOptionChain(symbol.symbolId, function (err, options) {
+qt.getSymbol("MSFT", function(err, symbol) {
+  qt.getOptionChain(symbol.symbolId, function(err, options) {
     var filters = [];
-    Object.keys(options).forEach(function (expiryDate) {
+    Object.keys(options).forEach(function(expiryDate) {
       filters.push({
-        optionType: 'Call',
+        optionType: "Call",
         underlyingId: symbol.symbolId,
         expiryDate: expiryDate
-      })
+      });
       filters.push({
-        optionType: 'Put',
+        optionType: "Put",
         underlyingId: symbol.symbolId,
         expiryDate: expiryDate
-      })
-    })
-    qt.getOptionQuoteSimplified(filters, function (err, options) {
-       /*
+      });
+    });
+    qt.getOptionQuoteSimplified(filters, function(err, options) {
+      /*
 
         options = {
           MSFT: {
@@ -264,10 +286,11 @@ qt.getSymbol('MSFT', function (err, symbol) {
             }
           }
        */
-    })
-  })
-})
+    });
+  });
+});
 ```
+
 ### Full Options
 
 - **test** - Whether or not to use real or fake login server (and API server)
@@ -275,7 +298,6 @@ qt.getSymbol('MSFT', function (err, symbol) {
 - **keyFile** - Instead of picking a directory location, specify the exact key file to use instead.
 - **account** - Specify which account ID to use
 - **apiVersion** - Defaults to `v1`
-
 
 ### Full Documentation
 
@@ -308,4 +330,5 @@ qt.getSymbol('MSFT', function (err, symbol) {
 - **testStrategy** (opts, cb)
 
 ### Contributions
+
 Are welcome!
